@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Drive Markdown Reader</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./">Drive Markdown Reader</a>
+      <div class="actions">
+        <button id="open-file" class="button" type="button">Open from Drive</button>
+        <button id="connect" class="button primary" type="button">Connect Google Drive</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar" aria-label="Document navigation">
+        <p class="eyebrow">READ ONLY</p>
+        <p id="connection-status" class="muted">Connect your Drive to get started.</p>
+        <form id="search-form" class="search-form">
+          <label for="search">Find a note</label>
+          <input id="search" type="search" placeholder="Search markdown files" autocomplete="off" />
+        </form>
+        <div id="results" class="results" aria-live="polite"></div>
+      </aside>
+
+      <article class="reader">
+        <div id="empty-state" class="empty-state">
+          <h1>Your notes, available anywhere.</h1>
+          <p>Open a Markdown file from Drive, or connect Drive and search your vault.</p>
+          <p class="muted">Nothing can be edited here. This reader only asks permission to view files.</p>
+        </div>
+        <div id="document" class="document" hidden></div>
+      </article>
+    </main>
+
+    <template id="result-template">
+      <button class="result" type="button">
+        <span class="result-name"></span>
+        <span class="result-path"></span>
+      </button>
+    </template>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
