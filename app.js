@@ -147,6 +147,8 @@ function startEditing() {
   $("#document").append(editor);
   updateEditorButtons();
   editor.focus();
+  editor.setSelectionRange(0, 0);
+  editor.scrollTop = 0;
 }
 
 function discardEdits() {
