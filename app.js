@@ -175,10 +175,12 @@ async function searchNotes(term = "") {
   const base = "mimeType = 'text/markdown' or name contains '.md'";
   const normalizedTerm = term.trim().toLowerCase();
   const escapedTerm = term.trim().replace(/'/g, "\\'");
-  const text = escapedTerm ? ` and (name contains '${escapedTerm}' or fullText contains '${escapedTerm}')` : "";
+  // Filename search is intentional: it provides predictable note lookup and
+  // avoids Drive's incompatible full-text relevance ordering.
+  const text = escapedTerm ? ` and name contains '${escapedTerm}'` : "";
   try {
     const query = `(${base}) and trashed = false${text}`;
-    const data = await (await driveFetch(`files?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType,parents,description)&pageSize=100`)).json();
+    const data = await (await driveFetch(`files?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType,parents,description)&orderBy=name&pageSize=100`)).json();
     const notes = data.files
       .filter(isMarkdownFile)
       .sort((a, b) => searchRank(a, normalizedTerm) - searchRank(b, normalizedTerm) || a.name.localeCompare(b.name))
