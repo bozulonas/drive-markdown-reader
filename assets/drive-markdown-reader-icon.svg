@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Drive Markdown Reader icon">
+  <rect width="256" height="256" rx="56" fill="#0f766e"/>
+  <path d="M70 43h75l42 42v128H70z" fill="#fff"/>
+  <path d="M145 43v42h42" fill="#ccfbf1"/>
+  <path d="M145 43v42h42" fill="none" stroke="#0f766e" stroke-linejoin="round" stroke-width="11"/>
+  <path d="M92 111h17v37M90 129h38M136 111h31M136 129h24M136 148h31" fill="none" stroke="#0f766e" stroke-linecap="round" stroke-linejoin="round" stroke-width="12"/>
+  <path d="M91 181h74" stroke="#99f6e4" stroke-linecap="round" stroke-width="11"/>
+</svg>
