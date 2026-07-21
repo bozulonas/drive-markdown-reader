@@ -156,21 +156,41 @@ async function openWikiLink(target, heading) {
   if (heading) location.hash = heading.toLowerCase().replace(/\s+/g, "-");
 }
 
+function isMarkdownFile(file) {
+  return file.mimeType === "text/markdown" || file.name.toLowerCase().endsWith(".md");
+}
+
+function searchRank(file, term) {
+  if (!term) return 0;
+  const name = file.name.toLowerCase();
+  const bareName = name.endsWith(".md") ? name.slice(0, -3) : name;
+  if (bareName === term) return 0;
+  if (bareName.startsWith(term)) return 1;
+  if (bareName.includes(term)) return 2;
+  return 3;
+}
+
 async function searchNotes(term = "") {
   if (!accessToken) return;
   const base = "mimeType = 'text/markdown' or name contains '.md'";
-  const text = term.trim() ? ` and fullText contains '${term.trim().replace(/'/g, "\\'")}'` : "";
+  const normalizedTerm = term.trim().toLowerCase();
+  const escapedTerm = term.trim().replace(/'/g, "\\'");
+  const text = escapedTerm ? ` and (name contains '${escapedTerm}' or fullText contains '${escapedTerm}')` : "";
   try {
     const query = `(${base}) and trashed = false${text}`;
-    const data = await (await driveFetch(`files?q=${encodeURIComponent(query)}&fields=files(id,name,parents,description)&orderBy=name&pageSize=50`)).json();
+    const data = await (await driveFetch(`files?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType,parents,description)&pageSize=100`)).json();
+    const notes = data.files
+      .filter(isMarkdownFile)
+      .sort((a, b) => searchRank(a, normalizedTerm) - searchRank(b, normalizedTerm) || a.name.localeCompare(b.name))
+      .slice(0, 30);
     const container = $("#results"); container.replaceChildren();
-    data.files.forEach((file) => {
+    notes.forEach((file) => {
       const item = $("#result-template").content.firstElementChild.cloneNode(true);
       item.querySelector(".result-name").textContent = file.name;
       item.querySelector(".result-path").textContent = file.description || "Markdown note";
       item.addEventListener("click", () => loadFile(file.id)); container.append(item);
     });
-    if (!data.files.length) container.textContent = "No Markdown notes found.";
+    if (!notes.length) container.textContent = "No Markdown notes found.";
   } catch (error) { status(error.message, true); }
 }
 
