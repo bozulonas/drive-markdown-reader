@@ -19,7 +19,10 @@ function rememberToken(response) {
   accessToken = response.access_token;
   // Preserve only the temporary, read-only access token. No refresh token or
   // Drive content is stored, and the cache expires one minute before the token.
-  const expiresAt = Date.now() + Math.max(0, Number(response.expires_in || 0) - 60) * 1000;
+  // GIS normally supplies expires_in. Use a conservative 55-minute fallback
+  // when it does not, rather than discarding an otherwise usable token.
+  const lifetimeSeconds = Number(response.expires_in || 3300);
+  const expiresAt = Date.now() + Math.max(60, lifetimeSeconds - 60) * 1000;
   localStorage.setItem(tokenStorageKey, JSON.stringify({ accessToken, expiresAt }));
 }
 
