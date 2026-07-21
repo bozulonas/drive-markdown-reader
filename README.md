@@ -1,6 +1,6 @@
 # Drive Markdown Reader
 
-A deliberately small, browser-only Markdown reader for an Obsidian vault stored in Google Drive. It never writes to Drive: the only OAuth scope is `drive.readonly`.
+A deliberately small, browser-only Markdown reader for an Obsidian vault stored in Google Drive. Reading uses `drive.readonly`; optional manual editing uses `drive.file` only for files opened with this app.
 
 It supports:
 
@@ -8,6 +8,7 @@ It supports:
 - Drive handoff URLs (`?fileId=…` and Drive's `state={"ids":[…]}` format)
 - Obsidian-style `[[Wiki Links]]`, aliases (`[[Note|label]]`), and heading links (`[[Note#Heading]]`)
 - Safe Markdown rendering (Markdown embedded HTML is disabled and output is sanitized)
+- Manual editing with a Drive-version check that blocks a save when the note changed since it was opened
 
 ## Run it locally
 
@@ -22,7 +23,7 @@ Then visit `http://localhost:8000`.
 ## Google setup
 
 1. In [Google Cloud Console](https://console.cloud.google.com/), create or select a project, enable the **Google Drive API** and **Google Picker API**.
-2. Configure the OAuth consent screen as **External** (test users are fine for personal use), add your Google account as a test user if required, and declare `drive.readonly` plus `drive.install`. The former is the restricted permission needed to search and read your vault; the latter merely allows the app to appear in Drive’s **Open with** menu.
+2. Configure the OAuth consent screen as **External** (test users are fine for personal use), add your Google account as a test user if required, and declare `drive.readonly`, `drive.file`, plus `drive.install`. The first searches and reads your vault, `drive.file` permits manual saves only for files opened with this app, and `drive.install` allows the app to appear in Drive’s **Open with** menu.
 3. Create an **OAuth client ID → Web application**. Add your local and deployed origins (for example `http://localhost:8000`) to **Authorized JavaScript origins**.
 4. Paste the client ID into `config.js`. Optionally create a browser API key restricted to Google Picker API and add it as `developerKey` for the picker button.
 5. Host this folder on HTTPS (GitHub Pages, Cloudflare Pages, etc.) and add that exact origin to OAuth.

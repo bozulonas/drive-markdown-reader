@@ -1,12 +1,14 @@
 /* global gapi, google, marked, DOMPurify */
 const config = window.DRIVE_MARKDOWN_CONFIG;
 // `drive.install` only registers this app in Drive's “Open with” menu; it does not grant write access.
-const scope = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.install";
-const tokenStorageKey = "drive-markdown-reader.token";
+const scope = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.install";
+const tokenStorageKey = "drive-markdown-reader.token.v2";
 const recentStorageKey = "drive-markdown-reader.recent";
 let tokenClient;
 let accessToken;
 let currentFile;
+let currentMarkdown = "";
+let editing = false;
 let searchTimer;
 const noteHistory = [];
 
@@ -36,6 +38,14 @@ function forgetToken() {
 
 function updateBackButton() {
   $("#back").disabled = noteHistory.length === 0;
+}
+
+function updateEditorButtons() {
+  const canEdit = Boolean(currentFile?.capabilities?.canEdit);
+  $("#edit").disabled = !currentFile || !canEdit || editing;
+  $("#edit").hidden = editing;
+  $("#discard").hidden = !editing;
+  $("#save").hidden = !editing;
 }
 
 function recentNotes() {
@@ -69,7 +79,7 @@ async function restoreToken() {
     if (!saved?.accessToken || saved.expiresAt <= Date.now()) return forgetToken();
     accessToken = saved.accessToken;
     $("#connect").textContent = "Drive connected";
-    status("Restoring your read-only Drive session…");
+    status("Restoring your Drive session…");
     const id = requestedFileId();
     if (id) await loadFile(id); else await searchNotes();
   } catch { forgetToken(); }
@@ -95,9 +105,10 @@ function requestedFileId() {
 }
 
 async function loadFile(id, { addToHistory = true } = {}) {
+  if (editing && !window.confirm("Discard unsaved edits and open another note?")) return false;
   try {
     status("Opening note…");
-    const metadata = await (await driveFetch(`files/${id}?fields=id,name,mimeType,parents,webViewLink`)).json();
+    const metadata = await (await driveFetch(`files/${id}?fields=id,name,mimeType,parents,webViewLink,version,modifiedTime,capabilities(canEdit)`)).json();
     if (!metadata.name.toLowerCase().endsWith(".md") && metadata.mimeType !== "text/markdown") {
       throw new Error("This reader can only open Markdown files.");
     }
@@ -107,18 +118,68 @@ async function loadFile(id, { addToHistory = true } = {}) {
       updateBackButton();
     }
     currentFile = metadata;
+    currentMarkdown = markdown;
+    editing = false;
     addRecent(metadata);
     document.title = `${metadata.name} · Drive Markdown Reader`;
     render(markdown);
     history.replaceState({}, "", `?fileId=${encodeURIComponent(id)}`);
     status(`Viewing ${metadata.name}`);
-  } catch (error) { status(error.message, true); }
+    updateEditorButtons();
+    return true;
+  } catch (error) { status(error.message, true); return false; }
 }
 
 async function goBack() {
-  const previous = noteHistory.pop();
+  const previous = noteHistory.at(-1);
+  if (previous && await loadFile(previous.id, { addToHistory: false })) noteHistory.pop();
   updateBackButton();
-  if (previous) await loadFile(previous.id, { addToHistory: false });
+}
+
+function startEditing() {
+  if (!currentFile?.capabilities?.canEdit) return;
+  editing = true;
+  $("#document").replaceChildren();
+  const editor = document.createElement("textarea");
+  editor.id = "editor";
+  editor.className = "editor";
+  editor.value = currentMarkdown;
+  $("#document").append(editor);
+  updateEditorButtons();
+  editor.focus();
+}
+
+function discardEdits() {
+  editing = false;
+  render(currentMarkdown);
+  updateEditorButtons();
+  status(`Viewing ${currentFile.name}`);
+}
+
+async function saveEdits() {
+  const editor = $("#editor");
+  if (!editor || !currentFile) return;
+  try {
+    status("Checking for changes in Drive…");
+    const latest = await (await driveFetch(`files/${currentFile.id}?fields=id,version,modifiedTime,capabilities(canEdit)`)).json();
+    if (!latest.capabilities?.canEdit) throw new Error("You no longer have permission to edit this note.");
+    if (latest.version !== currentFile.version) {
+      throw new Error("This note changed in Drive while you were editing. Your changes were not saved—reload the note and merge them manually.");
+    }
+    status("Saving to Drive…");
+    const response = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${currentFile.id}?uploadType=media&fields=id,name,mimeType,parents,version,modifiedTime,capabilities(canEdit)`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": currentFile.mimeType || "text/markdown" },
+      body: editor.value,
+    });
+    if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error?.message || response.statusText);
+    currentFile = { ...currentFile, ...(await response.json()) };
+    currentMarkdown = editor.value;
+    editing = false;
+    render(currentMarkdown);
+    updateEditorButtons();
+    status("Saved to Drive.");
+  } catch (error) { status(error.message, true); }
 }
 
 function render(markdown) {
@@ -200,7 +261,7 @@ function connect() {
   if (!config.clientId || config.clientId.startsWith("PASTE_")) { status("Add your Google OAuth client ID in config.js first.", true); return; }
   tokenClient ??= google.accounts.oauth2.initTokenClient({ client_id: config.clientId, scope, callback: async (response) => {
     if (response.error) return status(response.error, true);
-    rememberToken(response); $("#connect").textContent = "Drive connected"; status("Drive connected — read-only access.");
+    rememberToken(response); $("#connect").textContent = "Drive connected"; status("Drive connected.");
     const id = requestedFileId(); if (id) await loadFile(id); else await searchNotes();
   }});
   tokenClient.requestAccessToken({ prompt: accessToken ? "" : "consent" });
@@ -219,10 +280,14 @@ function openPicker() {
 
 $("#connect").addEventListener("click", connect);
 $("#back").addEventListener("click", goBack);
+$("#edit").addEventListener("click", startEditing);
+$("#discard").addEventListener("click", discardEdits);
+$("#save").addEventListener("click", saveEdits);
 $("#open-file").addEventListener("click", openPicker);
 $("#search").addEventListener("input", (event) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => searchNotes(event.target.value), 250); });
 window.addEventListener("load", () => {
   updateBackButton();
+  updateEditorButtons();
   renderRecent();
   if (localStorage.getItem(tokenStorageKey)) restoreToken();
   else if (requestedFileId()) status("Connect Drive to open the selected Markdown file.");

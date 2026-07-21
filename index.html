@@ -11,6 +11,9 @@
       <a class="brand" href="./">Drive Markdown Reader</a>
       <div class="actions">
         <button id="back" class="button" type="button" disabled>← Back</button>
+        <button id="edit" class="button" type="button" disabled>Edit</button>
+        <button id="discard" class="button" type="button" hidden>Discard</button>
+        <button id="save" class="button primary" type="button" hidden>Save</button>
         <button id="open-file" class="button" type="button">Open from Drive</button>
         <button id="connect" class="button primary" type="button">Connect Google Drive</button>
       </div>
@@ -18,7 +21,7 @@
 
     <main class="layout">
       <aside class="sidebar" aria-label="Document navigation">
-        <p class="eyebrow">READ ONLY</p>
+        <p class="eyebrow">DRIVE NOTES</p>
         <p id="connection-status" class="muted">Connect your Drive to get started.</p>
         <form id="search-form" class="search-form">
           <label for="search">Find a note</label>
@@ -35,7 +38,7 @@
         <div id="empty-state" class="empty-state">
           <h1>Your notes, available anywhere.</h1>
           <p>Open a Markdown file from Drive, or connect Drive and search your vault.</p>
-          <p class="muted">Nothing can be edited here. This reader only asks permission to view files.</p>
+          <p class="muted">Edits are manual and checked for Drive changes before saving.</p>
         </div>
         <div id="document" class="document" hidden></div>
       </article>
