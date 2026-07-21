@@ -1,6 +1,6 @@
 # Drive Markdown Reader
 
-A deliberately small, browser-only Markdown reader for an Obsidian vault stored in Google Drive. Reading uses `drive.readonly`; optional manual editing uses `drive.file` only for files opened with this app.
+A deliberately small, browser-only Markdown reader and manual editor for an Obsidian vault stored in Google Drive. It requests the broad `drive` scope so any note opened through Drive can be saved.
 
 It supports:
 
@@ -23,7 +23,7 @@ Then visit `http://localhost:8000`.
 ## Google setup
 
 1. In [Google Cloud Console](https://console.cloud.google.com/), create or select a project, enable the **Google Drive API** and **Google Picker API**.
-2. Configure the OAuth consent screen as **External** (test users are fine for personal use), add your Google account as a test user if required, and declare `drive.readonly`, `drive.file`, plus `drive.install`. The first searches and reads your vault, `drive.file` permits manual saves only for files opened with this app, and `drive.install` allows the app to appear in Drive’s **Open with** menu.
+2. Configure the OAuth consent screen as **External** (test users are fine for personal use), add your Google account as a test user if required, and declare `drive` plus `drive.install`. The `drive` scope is broad: it allows the app to view and edit your Drive files; `drive.install` allows the app to appear in Drive’s **Open with** menu.
 3. Create an **OAuth client ID → Web application**. Add your local and deployed origins (for example `http://localhost:8000`) to **Authorized JavaScript origins**.
 4. Paste the client ID into `config.js`. Optionally create a browser API key restricted to Google Picker API and add it as `developerKey` for the picker button.
 5. Host this folder on HTTPS (GitHub Pages, Cloudflare Pages, etc.) and add that exact origin to OAuth.

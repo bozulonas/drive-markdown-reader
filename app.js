@@ -1,8 +1,9 @@
 /* global gapi, google, marked, DOMPurify */
 const config = window.DRIVE_MARKDOWN_CONFIG;
 // `drive.install` only registers this app in Drive's “Open with” menu; it does not grant write access.
-const scope = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.install";
-const tokenStorageKey = "drive-markdown-reader.token.v2";
+// Drive-wide access is required to save any note opened through Drive's Open with menu.
+const scope = "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.install";
+const tokenStorageKey = "drive-markdown-reader.token.v3";
 const recentStorageKey = "drive-markdown-reader.recent";
 let tokenClient;
 let accessToken;
