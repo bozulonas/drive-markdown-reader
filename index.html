@@ -10,6 +10,7 @@
     <header class="topbar">
       <a class="brand" href="./">Drive Markdown Reader</a>
       <div class="actions">
+        <button id="back" class="button" type="button" disabled>← Back</button>
         <button id="open-file" class="button" type="button">Open from Drive</button>
         <button id="connect" class="button primary" type="button">Connect Google Drive</button>
       </div>
@@ -24,6 +25,10 @@
           <input id="search" type="search" placeholder="Search markdown files" autocomplete="off" />
         </form>
         <div id="results" class="results" aria-live="polite"></div>
+        <section class="recent-section" aria-labelledby="recent-heading">
+          <h2 id="recent-heading">Recently opened</h2>
+          <div id="recent" class="results"></div>
+        </section>
       </aside>
 
       <article class="reader">

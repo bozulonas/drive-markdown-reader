@@ -3,10 +3,12 @@ const config = window.DRIVE_MARKDOWN_CONFIG;
 // `drive.install` only registers this app in Drive's “Open with” menu; it does not grant write access.
 const scope = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.install";
 const tokenStorageKey = "drive-markdown-reader.token";
+const recentStorageKey = "drive-markdown-reader.recent";
 let tokenClient;
 let accessToken;
 let currentFile;
 let searchTimer;
+const noteHistory = [];
 
 const $ = (selector) => document.querySelector(selector);
 const status = (text, error = false) => {
@@ -30,6 +32,35 @@ function forgetToken() {
   accessToken = undefined;
   localStorage.removeItem(tokenStorageKey);
   $("#connect").textContent = "Connect Google Drive";
+}
+
+function updateBackButton() {
+  $("#back").disabled = noteHistory.length === 0;
+}
+
+function recentNotes() {
+  try { return JSON.parse(localStorage.getItem(recentStorageKey)) || []; }
+  catch { return []; }
+}
+
+function renderRecent() {
+  const container = $("#recent");
+  container.replaceChildren();
+  recentNotes().forEach((file) => {
+    const item = $("#result-template").content.firstElementChild.cloneNode(true);
+    item.querySelector(".result-name").textContent = file.name;
+    item.querySelector(".result-path").textContent = "Markdown note";
+    item.addEventListener("click", () => loadFile(file.id));
+    container.append(item);
+  });
+  if (!container.childElementCount) container.textContent = "No notes opened yet.";
+}
+
+function addRecent(file) {
+  const recent = recentNotes().filter((item) => item.id !== file.id);
+  recent.unshift({ id: file.id, name: file.name });
+  localStorage.setItem(recentStorageKey, JSON.stringify(recent.slice(0, 8)));
+  renderRecent();
 }
 
 async function restoreToken() {
@@ -63,7 +94,7 @@ function requestedFileId() {
   } catch { return null; }
 }
 
-async function loadFile(id) {
+async function loadFile(id, { addToHistory = true } = {}) {
   try {
     status("Opening note…");
     const metadata = await (await driveFetch(`files/${id}?fields=id,name,mimeType,parents,webViewLink`)).json();
@@ -71,12 +102,23 @@ async function loadFile(id) {
       throw new Error("This reader can only open Markdown files.");
     }
     const markdown = await (await driveFetch(`files/${id}?alt=media`)).text();
+    if (addToHistory && currentFile && currentFile.id !== metadata.id) {
+      noteHistory.push({ id: currentFile.id, name: currentFile.name });
+      updateBackButton();
+    }
     currentFile = metadata;
+    addRecent(metadata);
     document.title = `${metadata.name} · Drive Markdown Reader`;
     render(markdown);
     history.replaceState({}, "", `?fileId=${encodeURIComponent(id)}`);
     status(`Viewing ${metadata.name}`);
   } catch (error) { status(error.message, true); }
+}
+
+async function goBack() {
+  const previous = noteHistory.pop();
+  updateBackButton();
+  if (previous) await loadFile(previous.id, { addToHistory: false });
 }
 
 function render(markdown) {
@@ -154,9 +196,12 @@ function openPicker() {
 }
 
 $("#connect").addEventListener("click", connect);
+$("#back").addEventListener("click", goBack);
 $("#open-file").addEventListener("click", openPicker);
 $("#search").addEventListener("input", (event) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => searchNotes(event.target.value), 250); });
 window.addEventListener("load", () => {
+  updateBackButton();
+  renderRecent();
   if (localStorage.getItem(tokenStorageKey)) restoreToken();
   else if (requestedFileId()) status("Connect Drive to open the selected Markdown file.");
 });
