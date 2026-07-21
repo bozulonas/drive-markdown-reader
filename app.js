@@ -2,6 +2,7 @@
 const config = window.DRIVE_MARKDOWN_CONFIG;
 // `drive.install` only registers this app in Drive's “Open with” menu; it does not grant write access.
 const scope = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.install";
+const tokenStorageKey = "drive-markdown-reader.token";
 let tokenClient;
 let accessToken;
 let currentFile;
@@ -14,11 +15,38 @@ const status = (text, error = false) => {
   el.classList.toggle("error", error);
 };
 
+function rememberToken(response) {
+  accessToken = response.access_token;
+  // Preserve only the temporary, read-only access token. No refresh token or
+  // Drive content is stored, and the cache expires one minute before the token.
+  const expiresAt = Date.now() + Math.max(0, Number(response.expires_in || 0) - 60) * 1000;
+  localStorage.setItem(tokenStorageKey, JSON.stringify({ accessToken, expiresAt }));
+}
+
+function forgetToken() {
+  accessToken = undefined;
+  localStorage.removeItem(tokenStorageKey);
+  $("#connect").textContent = "Connect Google Drive";
+}
+
+async function restoreToken() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(tokenStorageKey));
+    if (!saved?.accessToken || saved.expiresAt <= Date.now()) return forgetToken();
+    accessToken = saved.accessToken;
+    $("#connect").textContent = "Drive connected";
+    status("Restoring your read-only Drive session…");
+    const id = requestedFileId();
+    if (id) await loadFile(id); else await searchNotes();
+  } catch { forgetToken(); }
+}
+
 async function driveFetch(path, options = {}) {
   const response = await fetch(`https://www.googleapis.com/drive/v3/${path}`, {
     ...options,
     headers: { Authorization: `Bearer ${accessToken}`, ...(options.headers || {}) },
   });
+  if (response.status === 401) forgetToken();
   if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error?.message || response.statusText);
   return response;
 }
@@ -105,7 +133,7 @@ function connect() {
   if (!config.clientId || config.clientId.startsWith("PASTE_")) { status("Add your Google OAuth client ID in config.js first.", true); return; }
   tokenClient ??= google.accounts.oauth2.initTokenClient({ client_id: config.clientId, scope, callback: async (response) => {
     if (response.error) return status(response.error, true);
-    accessToken = response.access_token; $("#connect").textContent = "Drive connected"; status("Drive connected — read-only access.");
+    rememberToken(response); $("#connect").textContent = "Drive connected"; status("Drive connected — read-only access.");
     const id = requestedFileId(); if (id) await loadFile(id); else await searchNotes();
   }});
   tokenClient.requestAccessToken({ prompt: accessToken ? "" : "consent" });
@@ -125,4 +153,7 @@ function openPicker() {
 $("#connect").addEventListener("click", connect);
 $("#open-file").addEventListener("click", openPicker);
 $("#search").addEventListener("input", (event) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => searchNotes(event.target.value), 250); });
-window.addEventListener("load", () => { if (requestedFileId()) status("Connect Drive to open the selected Markdown file."); });
+window.addEventListener("load", () => {
+  if (localStorage.getItem(tokenStorageKey)) restoreToken();
+  else if (requestedFileId()) status("Connect Drive to open the selected Markdown file.");
+});
